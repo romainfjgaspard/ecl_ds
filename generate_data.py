@@ -29,12 +29,12 @@ COLORS = {
 }
 
 FULL_NAMES = {
-    "TG": "Thomas G.",
-    "GB": "Guillaume B.",
-    "ZA": "Zouhayr A.",
-    "RG": "Romain G.",
-    "JD": "Jean D.",
-    "RZ": "Ryan Z.",
+    "TG": "TG",
+    "GB": "GB",
+    "ZA": "ZA",
+    "RG": "RG",
+    "JD": "JD",
+    "RZ": "RZ",
     "EJ": "EJ",
 }
 

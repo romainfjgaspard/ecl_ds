@@ -194,6 +194,43 @@ body {
 }
 .btn-reset:hover { border-color: #ef4444; color: #ef4444; }
 
+/* ── Main Navigation Tabs ────────────────────────────────────────────────────── */
+.main-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--bg2);
+  border-bottom: 2px solid var(--border);
+  padding: 0 24px;
+  position: sticky;
+  top: 52px;
+  z-index: 90;
+  overflow-x: auto;
+}
+.main-tabs::-webkit-scrollbar { height: 3px; }
+.main-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.main-tab-btn {
+  padding: 0.85rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  transition: color 0.18s, border-color 0.18s;
+}
+.main-tab-btn:hover { color: var(--text); }
+.main-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.main-tab-panel { display: none; }
+.main-tab-panel.active { display: block; }
+
 /* ── KPI Cards ──────────────────────────────────────────────────────────────── */
 .kpi-section {
   max-width: 1600px;

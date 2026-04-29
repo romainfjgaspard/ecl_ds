@@ -16,7 +16,11 @@ let TL_MODE = 'absolute'; // 'absolute' | 'pct' | 'stacked'
 let raceTimer = null;
 let raceIdx = 0;
 let racePlaying = false;
+let raceInitialized = false;
 const RACE_MAX_SPEED = 10;
+
+// Tab state
+let activeTab = 'overview';
 
 // Table sort state
 let tableSortCol = 'messages';
@@ -85,15 +89,16 @@ async function init() {
   FILTERS.people     = [...STATS.meta.people];
 
   setupControls();
-  renderAll();
-  initRaceJS();
 
-  // Meta in header
+  // Update header badge immediately (before charts, so never stuck on 'Chargement…')
   const { date_from, date_to, total_messages } = STATS.meta;
   document.getElementById('header-badge').textContent =
     `${fmt(total_messages)} messages · ${date_from} → ${date_to}`;
   document.getElementById('footer-gen').textContent =
     `Généré le ${new Date(STATS.meta.generated_at).toLocaleString('fr-FR')}`;
+
+  // Render after layout pass to ensure canvas dimensions are correct
+  requestAnimationFrame(() => renderAll());
 }
 
 // ── Controls setup ────────────────────────────────────────────────────────────
@@ -217,7 +222,12 @@ function setupControls() {
   });
   selTW.addEventListener('change', () => renderTopWords(selTW.value));
 
-  // Race tabs
+  // Main navigation tabs
+  document.querySelectorAll('.main-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchMainTab(btn.dataset.tab));
+  });
+
+  // Race tabs (inside race tab panel)
   document.querySelectorAll('.race-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.race-tab').forEach(t => t.classList.remove('active'));
@@ -264,22 +274,53 @@ function getPersonTotals() {
   return totals;
 }
 
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchMainTab(tab) {
+  document.querySelectorAll('.main-tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.main-tab-panel').forEach(p =>
+    p.classList.toggle('active', p.id === `tab-${tab}`));
+  activeTab = tab;
+  requestAnimationFrame(() => renderTabContent(tab));
+}
+
+function renderTabContent(tab) {
+  if (tab === 'overview') {
+    renderTimeline();
+    const t = getPersonTotals();
+    renderByPerson(t);
+    renderDonut(t);
+    renderLengthDist();
+    renderTable();
+  } else if (tab === 'activity') {
+    const hmP = document.getElementById('sel-heatmap-person')?.value || 'all';
+    renderHeatmap(hmP);
+    renderWeekday();
+    renderHour();
+    renderLengthDist2();
+    renderResponseTime();
+  } else if (tab === 'content') {
+    const emP = document.getElementById('sel-emoji-person')?.value || 'all';
+    renderEmojis(emP);
+    const twP = document.getElementById('sel-topwords-person')?.value || STATS.meta.people[0];
+    renderTopWords(twP);
+    // WordCloud last (heavier, needs correct canvas dims)
+    setTimeout(() => {
+      const wcP = document.getElementById('sel-wc-person')?.value || 'all';
+      renderWordCloud(wcP);
+    }, 60);
+  } else if (tab === 'race') {
+    if (!raceInitialized) {
+      raceInitialized = true;
+      initRaceJS();
+    }
+  }
+}
+
 // ── Render all ────────────────────────────────────────────────────────────────
 function renderAll() {
-  const totals = getPersonTotals();
-  renderKPIs(totals);
-  renderTimeline();
-  renderByPerson(totals);
-  renderDonut(totals);
-  renderLengthDist(totals);
-  renderHeatmap('all');
-  renderWordCloud('all');
-  renderTable();
-  renderEmojis('all');
-  renderResponseTime();
-  renderWeekday();
-  renderHour();
-  renderTopWords(STATS.meta.people[0]);
+  renderKPIs(getPersonTotals());
+  renderTabContent(activeTab);
 }
 
 // ── KPI Cards ─────────────────────────────────────────────────────────────────
@@ -496,6 +537,36 @@ function renderDonut(totals) {
             },
           },
         },
+      },
+    },
+  });
+}
+
+// ── Message length distribution (tab-activity uses chart-length2) ─────────────
+function renderLengthDist2() {
+  destroyChart('length2');
+  const labels = STATS.meta.length_labels;
+  const datasets = FILTERS.people.map(p => ({
+    label: STATS.meta.full_names[p] || p,
+    data: STATS.msg_length_dist[p] || labels.map(() => 0),
+    backgroundColor: hexToRgba(STATS.meta.colors[p], 0.75),
+    borderColor: STATS.meta.colors[p], borderWidth: 1, borderRadius: 3,
+  }));
+  const el = document.getElementById('chart-length2');
+  if (!el) return;
+  CHARTS.length2 = new Chart(el, {
+    type: 'bar', data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top',
+          labels: { boxWidth: 8, padding: 8, color: '#94a3b8', font: { size: 10 } } },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } },
+          title: { display: true, text: 'Longueur (chars)', color: '#64748b', font: { size: 10 } } },
+        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
       },
     },
   });
