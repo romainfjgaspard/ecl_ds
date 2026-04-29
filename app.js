@@ -214,7 +214,7 @@ function setupControls() {
   });
   selEmo.addEventListener('change', () => renderEmojis(selEmo.value));
 
-  // Top words person select
+  // Top words person select — "Tous" already in HTML, add per-person options
   const selTW = document.getElementById('sel-topwords-person');
   STATS.meta.people.forEach(p => {
     selTW.insertAdjacentHTML('beforeend',
@@ -302,7 +302,7 @@ function renderTabContent(tab) {
   } else if (tab === 'content') {
     const emP = document.getElementById('sel-emoji-person')?.value || 'all';
     renderEmojis(emP);
-    const twP = document.getElementById('sel-topwords-person')?.value || STATS.meta.people[0];
+    const twP = document.getElementById('sel-topwords-person')?.value || 'all';
     renderTopWords(twP);
     // WordCloud last (heavier, needs correct canvas dims)
     setTimeout(() => {
@@ -602,65 +602,154 @@ function renderLengthDist() {
   });
 }
 
-// ── Heatmap (hour × weekday) ──────────────────────────────────────────────────
-function renderHeatmap(person) {
-  const container = document.getElementById('heatmap-container');
-  container.innerHTML = '';
+// ── Heatmap (canvas, real hour×weekday data, warm color scale) ────────────────
+function heatColor(pct) {
+  const stops = [
+    [0,    [15, 23, 42]],    // #0f172a
+    [0.12, [30, 58, 95]],   // #1e3a5f
+    [0.35, [3, 105, 161]],  // #0369a1
+    [0.60, [6, 182, 212]],  // #06b6d4
+    [0.82, [245, 158, 11]], // #f59e0b
+    [1.0,  [239, 68, 68]],  // #ef4444
+  ];
+  for (let i = 1; i < stops.length; i++) {
+    if (pct <= stops[i][0]) {
+      const t = (pct - stops[i-1][0]) / (stops[i][0] - stops[i-1][0]);
+      const r = Math.round(stops[i-1][1][0] + t * (stops[i][1][0] - stops[i-1][1][0]));
+      const g = Math.round(stops[i-1][1][1] + t * (stops[i][1][1] - stops[i-1][1][1]));
+      const b = Math.round(stops[i-1][1][2] + t * (stops[i][1][2] - stops[i-1][1][2]));
+      return `rgb(${r},${g},${b})`;
+    }
+  }
+  return '#ef4444';
+}
 
-  // Build 24×7 matrix
+function canvasRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function renderHeatmap(person) {
+  const canvas = document.getElementById('canvas-heatmap');
+  if (!canvas) return;
+  const wrap = canvas.parentElement;
+  const DPR  = window.devicePixelRatio || 1;
+  const W    = wrap.clientWidth  || 700;
+  const H    = 300;
+
+  canvas.width  = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(DPR, DPR);
+
+  // Build 24×7 matrix from real cross-tab data
   const matrix = Array.from({length: 24}, () => new Array(7).fill(0));
   const people = person === 'all' ? STATS.meta.people : [person];
-
   people.forEach(p => {
-    const hd = STATS.by_hour_person[p] || {};
-    const wd = STATS.by_weekday_person[p] || {};
-    for (let h = 0; h < 24; h++) {
-      for (let d = 0; d < 7; d++) {
-        // approximate: hour total × weekday total / all total
-        const hTotal = (STATS.by_hour_person[p] || {})[h] || 0;
-        const wTotal = (STATS.by_weekday_person[p] || {})[d] || 0;
-        const allTotal = STATS.by_person[p]?.messages || 1;
-        matrix[h][d] += Math.round(hTotal * wTotal / allTotal);
-      }
-    }
+    const hw = STATS.by_hour_weekday_person?.[p];
+    if (!hw) return;
+    for (let h = 0; h < 24; h++)
+      for (let d = 0; d < 7; d++)
+        matrix[h][d] += hw[h]?.[d] || 0;
   });
-
-  // Use actual hour-only data if single person or all
-  // (exact hour×day not stored, approximated above)
   const maxVal = Math.max(...matrix.flat(), 1);
 
-  const grid = document.createElement('div');
-  grid.className = 'heatmap-grid cols-7';
+  const LBL_W = 34;
+  const LBL_H = 22;
+  const LEG_H = 22;
+  const GAP   = 2;
+  const cellW = (W - LBL_W) / 7;
+  const cellH = (H - LBL_H - LEG_H) / 24;
+  const DAYS  = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-  // Header row
-  const emptyCell = document.createElement('div');
-  grid.appendChild(emptyCell);
-  DAYS_FR.forEach(d => {
-    const h = document.createElement('div');
-    h.className = 'heatmap-header'; h.textContent = d;
-    grid.appendChild(h);
-  });
+  ctx.fillStyle = '#0a1120';
+  ctx.fillRect(0, 0, W, H);
 
-  // Hour rows
+  // Draw cells
   for (let h = 0; h < 24; h++) {
-    const rowLabel = document.createElement('div');
-    rowLabel.className = 'heatmap-row-label';
-    rowLabel.textContent = `${h.toString().padStart(2,'0')}h`;
-    grid.appendChild(rowLabel);
-
     for (let d = 0; d < 7; d++) {
-      const val = matrix[h][d];
-      const pct = val / maxVal;
-      const cell = document.createElement('div');
-      cell.className = 'heatmap-cell';
-      const alpha = 0.08 + pct * 0.92;
-      cell.style.background = `rgba(56,189,248,${alpha.toFixed(2)})`;
-      cell.setAttribute('data-tip', `${DAYS_FR[d]} ${h}h : ~${val} msgs`);
-      grid.appendChild(cell);
+      const pct = matrix[h][d] / maxVal;
+      const x = LBL_W + d * cellW + GAP / 2;
+      const y = LBL_H + h * cellH + GAP / 2;
+      ctx.fillStyle = heatColor(pct);
+      canvasRoundRect(ctx, x, y, cellW - GAP, cellH - GAP, 2);
+      ctx.fill();
     }
   }
 
-  container.appendChild(grid);
+  // Day headers
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let d = 0; d < 7; d++) {
+    ctx.font = `bold 11px monospace`;
+    ctx.fillStyle = d >= 5 ? '#94a3b8' : '#64748b';
+    ctx.fillText(DAYS[d], LBL_W + d * cellW + cellW / 2, LBL_H / 2);
+  }
+
+  // Hour labels every 2h
+  ctx.font = `10px monospace`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#475569';
+  for (let h = 0; h < 24; h += 2) {
+    ctx.fillText(`${h.toString().padStart(2, '0')}h`, LBL_W - 4, LBL_H + h * cellH + cellH);
+  }
+
+  // Gradient legend
+  const lgX = LBL_W + 4, lgY = H - LEG_H + 6, lgW = W - LBL_W - 8;
+  const grad = ctx.createLinearGradient(lgX, 0, lgX + lgW, 0);
+  grad.addColorStop(0,    '#0a1120');
+  grad.addColorStop(0.12, '#1e3a5f');
+  grad.addColorStop(0.35, '#0369a1');
+  grad.addColorStop(0.60, '#06b6d4');
+  grad.addColorStop(0.82, '#f59e0b');
+  grad.addColorStop(1,    '#ef4444');
+  canvasRoundRect(ctx, lgX, lgY, lgW, 7, 3);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.font = `9px monospace`;
+  ctx.fillStyle = '#475569';
+  ctx.textAlign = 'left';  ctx.textBaseline = 'middle';
+  ctx.fillText('0', lgX, lgY + 14);
+  ctx.textAlign = 'right';
+  ctx.fillText(maxVal, lgX + lgW, lgY + 14);
+
+  // Tooltip
+  canvas._heatData = { matrix, maxVal, LBL_W, LBL_H, cellW, cellH, DAYS };
+  canvas.onmousemove = (e) => {
+    const tip  = document.getElementById('heatmap-tooltip');
+    if (!tip) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const mx = (e.clientX - rect.left)  * scaleX;
+    const my = (e.clientY - rect.top) * scaleX;
+    const d  = Math.floor((mx - LBL_W) / cellW);
+    const h  = Math.floor((my - LBL_H) / cellH);
+    if (d >= 0 && d < 7 && h >= 0 && h < 24) {
+      const val = matrix[h][d] || 0;
+      tip.textContent = `${DAYS[d]}  ${h.toString().padStart(2,'0')}h  —  ${val} messages`;
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX + 12) + 'px';
+      tip.style.top  = (e.clientY - 8)  + 'px';
+    } else {
+      tip.style.display = 'none';
+    }
+  };
+  canvas.onmouseleave = () => {
+    const tip = document.getElementById('heatmap-tooltip');
+    if (tip) tip.style.display = 'none';
+  };
 }
 
 // ── Word cloud ────────────────────────────────────────────────────────────────
@@ -936,13 +1025,15 @@ function renderHour() {
   });
 }
 
-// ── Top words per person ──────────────────────────────────────────────────────
+// ── Top words per person (or all) ─────────────────────────────────────────────
 function renderTopWords(person) {
   destroyChart('topwords');
-  const words = (STATS.word_freq_person[person] || []).slice(0, 15);
+  const words = person === 'all'
+    ? STATS.word_freq_all.slice(0, 15)
+    : (STATS.word_freq_person[person] || []).slice(0, 15);
   if (!words.length) return;
 
-  const color = STATS.meta.colors[person] || '#38bdf8';
+  const color = person === 'all' ? '#38bdf8' : (STATS.meta.colors[person] || '#38bdf8');
 
   CHARTS.topwords = new Chart(document.getElementById('chart-topwords'), {
     type: 'bar',

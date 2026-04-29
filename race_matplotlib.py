@@ -231,7 +231,13 @@ def main():
     OUTPUT.parent.mkdir(exist_ok=True)
 
     try:
-        writer = FFMpegWriter(fps=FPS, metadata={"title": "ECL Data Club Race"}, bitrate=3000)
+        writer = FFMpegWriter(
+            fps=FPS,
+            metadata={"title": "ECL Data Club Race"},
+            codec='libx264',
+            extra_args=['-pix_fmt', 'yuv420p', '-movflags', '+faststart'],
+            bitrate=2000,
+        )
         anim.save(str(OUTPUT), writer=writer, dpi=150)
         print(f"  ✓ Sauvegardé → {OUTPUT}")
     except Exception as e:

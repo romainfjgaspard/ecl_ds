@@ -177,6 +177,10 @@ def build_stats(messages: list[dict]) -> dict:
     by_weekday_person: dict[str, Counter] = defaultdict(Counter)
     by_month: dict[str, Counter] = defaultdict(Counter)
     daily: dict[str, Counter] = defaultdict(Counter)
+    by_hour_weekday: list[list[int]] = [[0] * 7 for _ in range(24)]
+    by_hour_weekday_person: dict[str, list[list[int]]] = {
+        s: [[0] * 7 for _ in range(24)] for s in KNOWN_SENDERS
+    }
 
     # For response times: time between messages from different senders
     last_sender: str | None = None
@@ -214,6 +218,8 @@ def build_stats(messages: list[dict]) -> dict:
         by_weekday_person[s][wd] += 1
         by_month[month][s] += 1
         daily[day][s] += 1
+        by_hour_weekday[h][wd] += 1
+        by_hour_weekday_person[s][h][wd] += 1
 
         # Response times
         if last_sender and last_sender != s and last_dt:
@@ -362,6 +368,8 @@ def build_stats(messages: list[dict]) -> dict:
             for day, cnt in sorted(daily.items())
         },
         "msg_length_dist": msg_length_dist,
+        "by_hour_weekday": by_hour_weekday,
+        "by_hour_weekday_person": by_hour_weekday_person,
         "response_time_stats": {
             s: rt_stats(times) for s, times in response_times.items()
         },
