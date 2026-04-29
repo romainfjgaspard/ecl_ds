@@ -345,7 +345,7 @@
     <div class="video-panel">
       <video id="video-bcr" controls loop class="race-video"
              src="data/race_bcr.mp4"
-             onerror="document.getElementById('video-bcr-fallback').style.display='flex'">
+             onerror="this.style.display='none';document.getElementById('video-bcr-fallback').style.display='flex'">
       </video>
       <div id="video-bcr-fallback" class="video-fallback" style="display:none">
         <span>📽️</span>
@@ -363,7 +363,7 @@
     <div class="video-panel">
       <video id="video-mpl" controls loop class="race-video"
              src="data/race_matplotlib.mp4"
-             onerror="document.getElementById('video-mpl-fallback').style.display='flex'">
+             onerror="this.style.display='none';document.getElementById('video-mpl-fallback').style.display='flex'">
       </video>
       <div id="video-mpl-fallback" class="video-fallback" style="display:none">
         <span>📽️</span>

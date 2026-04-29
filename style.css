@@ -85,8 +85,8 @@ body {
   font-family: var(--font-mono);
 }
 
-/* ── Controls bar ───────────────────────────────────────────────────────────── */
-.controls-bar {
+/* ── App Nav (sticky, 2 rows) ───────────────────────────────────────────────── */
+.app-nav {
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -94,6 +94,52 @@ body {
   z-index: 100;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
+.app-nav-top {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.app-nav-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.app-nav-period {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+.app-nav-bottom {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 6px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.app-nav-members {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.app-nav-gran {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── Controls (legacy, kept for shared elements) ────────────────────────────── */
 .controls-inner {
   max-width: 1600px;
   margin: 0 auto;
