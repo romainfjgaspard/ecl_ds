@@ -193,7 +193,7 @@ def main():
     ax_title.axis("off")
     ax_title.text(
         0.02, 0.65,
-        "💾  ECL DATA CLUB",
+        "ECL DATA CLUB",
         ha="left", va="center",
         fontsize=18, fontweight="bold", color=TEXT_COL,
         fontfamily="monospace",

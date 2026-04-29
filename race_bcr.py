@@ -81,7 +81,7 @@ def main():
             "size": 11, "color": "#444",
         },
         cmap=cmap_colors,
-        title="💾  ECL Data Club — Messages cumulés par membre",
+        title="ECL Data Club — Messages cumulés par membre",
         title_size=14,
         bar_label_size=9,
         tick_label_size=11,
