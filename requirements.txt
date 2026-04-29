@@ -1,0 +1,12 @@
+# Data parsing & stats
+pandas>=2.0
+numpy>=1.25
+
+# Bar chart race v1
+bar_chart_race>=0.1.0
+
+# Bar chart race v2 (custom)
+matplotlib>=3.8
+
+# Standard (usually pre-installed)
+# json, re, collections, pathlib — stdlib

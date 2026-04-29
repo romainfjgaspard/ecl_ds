@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💾 ECL Data Club — WhatsApp Stats</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- WordCloud2 -->
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-title">
+      <span class="header-icon">💾</span>
+      <div>
+        <h1>ECL Data Club</h1>
+        <p class="header-sub">Analyse statistique du groupe WhatsApp</p>
+      </div>
+    </div>
+    <div class="header-badge" id="header-badge">
+      Chargement…
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ CONTROLS -->
+<section class="controls-bar" id="controls">
+  <div class="controls-inner">
+
+    <!-- Date range -->
+    <div class="control-group">
+      <label class="control-label">Période</label>
+      <div class="range-selects">
+        <select id="sel-start" class="ctrl-select"></select>
+        <span class="range-arrow">→</span>
+        <select id="sel-end" class="ctrl-select"></select>
+      </div>
+    </div>
+
+    <!-- Person toggles -->
+    <div class="control-group">
+      <label class="control-label">Membres</label>
+      <div class="person-toggles" id="person-toggles"></div>
+    </div>
+
+    <!-- Granularity -->
+    <div class="control-group">
+      <label class="control-label">Timeline</label>
+      <div class="btn-group" id="gran-btns">
+        <button class="gran-btn active" data-gran="month">Mois</button>
+        <button class="gran-btn" data-gran="week">Semaine</button>
+      </div>
+    </div>
+
+    <!-- Reset -->
+    <button id="btn-reset" class="btn-reset" title="Réinitialiser les filtres">↺ Reset</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ KPI CARDS -->
+<section class="kpi-section" id="kpi-section">
+  <div class="kpi-card" id="kpi-total">
+    <div class="kpi-label">Messages total</div>
+    <div class="kpi-value" id="kpi-total-val">—</div>
+    <div class="kpi-sub" id="kpi-total-sub"></div>
+  </div>
+  <div class="kpi-card" id="kpi-days">
+    <div class="kpi-label">Jours actifs</div>
+    <div class="kpi-value" id="kpi-days-val">—</div>
+    <div class="kpi-sub" id="kpi-days-sub"></div>
+  </div>
+  <div class="kpi-card" id="kpi-avg">
+    <div class="kpi-label">Moyenne / jour</div>
+    <div class="kpi-value" id="kpi-avg-val">—</div>
+    <div class="kpi-sub" id="kpi-avg-sub"></div>
+  </div>
+  <div class="kpi-card" id="kpi-top">
+    <div class="kpi-label">🏆 Leader</div>
+    <div class="kpi-value" id="kpi-top-val">—</div>
+    <div class="kpi-sub" id="kpi-top-sub"></div>
+  </div>
+  <div class="kpi-card" id="kpi-streak">
+    <div class="kpi-label">Streak max</div>
+    <div class="kpi-value" id="kpi-streak-val">—</div>
+    <div class="kpi-sub">jours consécutifs</div>
+  </div>
+  <div class="kpi-card" id="kpi-words">
+    <div class="kpi-label">Mots écrits</div>
+    <div class="kpi-value" id="kpi-words-val">—</div>
+    <div class="kpi-sub">tous membres</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ CHARTS GRID -->
+<main class="charts-grid">
+
+  <!-- Timeline (full width) -->
+  <div class="chart-card card-full">
+    <div class="card-header">
+      <h2 class="card-title">📈 Activité dans le temps</h2>
+      <div class="card-controls">
+        <label class="ctrl-small">Axe Y</label>
+        <div class="btn-group-sm" id="timeline-mode-btns">
+          <button class="sm-btn active" data-mode="absolute">Absolu</button>
+          <button class="sm-btn" data-mode="pct">% relatif</button>
+          <button class="sm-btn" data-mode="stacked">Cumulé</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="chart-timeline"></canvas>
+    </div>
+  </div>
+
+  <!-- Messages par personne -->
+  <div class="chart-card card-third">
+    <div class="card-header">
+      <h2 class="card-title">👤 Messages par membre</h2>
+    </div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="chart-by-person"></canvas>
+    </div>
+  </div>
+
+  <!-- Distribution longueur messages -->
+  <div class="chart-card card-third">
+    <div class="card-header">
+      <h2 class="card-title">📏 Longueur des messages</h2>
+      <span class="tooltip-icon" title="Distribution des messages par tranche de longueur (nb de caractères)">ⓘ</span>
+    </div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="chart-length"></canvas>
+    </div>
+  </div>
+
+  <!-- Donut share -->
+  <div class="chart-card card-third">
+    <div class="card-header">
+      <h2 class="card-title">🥧 Part des messages</h2>
+    </div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="chart-donut"></canvas>
+    </div>
+  </div>
+
+  <!-- Heatmap activité heure × jour -->
+  <div class="chart-card card-half">
+    <div class="card-header">
+      <h2 class="card-title">🔥 Heatmap d'activité</h2>
+      <div class="card-controls">
+        <label class="ctrl-small">Membre</label>
+        <select id="sel-heatmap-person" class="ctrl-select-sm">
+          <option value="all">Tous</option>
+        </select>
+      </div>
+    </div>
+    <div id="heatmap-container" style="overflow-x:auto; padding:8px 0">
+      <!-- Generated by JS -->
+    </div>
+    <div class="heatmap-legend">
+      <span style="color:#64748b;font-size:11px">Faible</span>
+      <div class="heatmap-legend-bar"></div>
+      <span style="color:#64748b;font-size:11px">Fort</span>
+    </div>
+  </div>
+
+  <!-- Word cloud -->
+  <div class="chart-card card-half">
+    <div class="card-header">
+      <h2 class="card-title">☁️ Nuage de mots</h2>
+      <div class="card-controls">
+        <label class="ctrl-small">Membre</label>
+        <select id="sel-wc-person" class="ctrl-select-sm">
+          <option value="all">Tous</option>
+        </select>
+        <button id="btn-wc-refresh" class="icon-btn" title="Regénérer">⟳</button>
+      </div>
+    </div>
+    <div style="position:relative; height:280px">
+      <canvas id="canvas-wordcloud" style="width:100%;height:100%"></canvas>
+    </div>
+  </div>
+
+  <!-- Tableau stats par personne -->
+  <div class="chart-card card-full">
+    <div class="card-header">
+      <h2 class="card-title">📊 Tableau de bord individuel</h2>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="stats-table" id="stats-table">
+        <thead>
+          <tr>
+            <th>Membre</th>
+            <th class="num-col sortable" data-col="messages">Messages ↕</th>
+            <th class="num-col sortable" data-col="pct_messages">% ↕</th>
+            <th class="num-col sortable" data-col="words">Mots ↕</th>
+            <th class="num-col sortable" data-col="avg_words_per_msg">Mots/msg ↕</th>
+            <th class="num-col sortable" data-col="avg_chars_per_msg">Chars/msg ↕</th>
+            <th class="num-col sortable" data-col="media_count">Médias ↕</th>
+            <th class="num-col sortable" data-col="links_count">Liens ↕</th>
+            <th>Emoji favori</th>
+          </tr>
+        </thead>
+        <tbody id="stats-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Emojis top -->
+  <div class="chart-card card-half">
+    <div class="card-header">
+      <h2 class="card-title">😂 Top emojis</h2>
+      <div class="card-controls">
+        <label class="ctrl-small">Membre</label>
+        <select id="sel-emoji-person" class="ctrl-select-sm">
+          <option value="all">Tous</option>
+        </select>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="chart-emojis"></canvas>
+    </div>
+  </div>
+
+  <!-- Response times -->
+  <div class="chart-card card-half">
+    <div class="card-header">
+      <h2 class="card-title">⚡ Temps de réponse médian</h2>
+      <span class="tooltip-icon" title="Temps médian entre la fin d'un message d'un autre membre et votre réponse (messages le même jour)">ⓘ</span>
+    </div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="chart-response"></canvas>
+    </div>
+  </div>
+
+  <!-- Jour de semaine -->
+  <div class="chart-card card-third">
+    <div class="card-header">
+      <h2 class="card-title">📅 Activité hebdo</h2>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chart-weekday"></canvas>
+    </div>
+  </div>
+
+  <!-- Heure du jour -->
+  <div class="chart-card card-third">
+    <div class="card-header">
+      <h2 class="card-title">🕐 Heure d'envoi</h2>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chart-hour"></canvas>
+    </div>
+  </div>
+
+  <!-- Top mots par personne -->
+  <div class="chart-card card-third">
+    <div class="card-header">
+      <h2 class="card-title">🔤 Top mots / membre</h2>
+      <div class="card-controls">
+        <select id="sel-topwords-person" class="ctrl-select-sm"></select>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chart-topwords"></canvas>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════ BAR CHART RACE -->
+<section class="race-section">
+  <div class="race-header">
+    <h2>🏎️ Bar Chart Race — Évolution mensuelle</h2>
+    <p class="race-desc">Qui envoie le plus de messages au fil des mois ?</p>
+  </div>
+
+  <div class="race-tabs">
+    <button class="race-tab active" data-tab="js">🌐 Version JS (live)</button>
+    <button class="race-tab" data-tab="bcr">🐍 bar_chart_race</button>
+    <button class="race-tab" data-tab="mpl">🎨 Matplotlib custom</button>
+  </div>
+
+  <!-- JS Race -->
+  <div class="race-panel active" id="race-panel-js">
+    <div class="js-race-container">
+      <div class="js-race-header">
+        <div class="js-race-month" id="js-race-month">—</div>
+        <div class="js-race-total" id="js-race-total"></div>
+      </div>
+      <div id="js-race-bars" class="js-race-bars"></div>
+      <div class="js-race-controls">
+        <button id="race-play-btn" class="race-control-btn">▶ Play</button>
+        <button id="race-restart-btn" class="race-control-btn secondary">↺</button>
+        <div class="race-speed-group">
+          <label class="ctrl-small">Vitesse</label>
+          <input type="range" id="race-speed" min="1" max="10" value="4" class="speed-slider">
+          <span id="race-speed-label" class="speed-label">×4</span>
+        </div>
+        <div class="race-progress-wrap">
+          <div class="race-progress-track">
+            <div id="race-progress-fill" class="race-progress-fill"></div>
+          </div>
+          <span id="race-progress-label" class="race-progress-label"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BCR video -->
+  <div class="race-panel" id="race-panel-bcr">
+    <div class="video-panel">
+      <video id="video-bcr" controls loop class="race-video"
+             src="data/race_bcr.mp4"
+             onerror="document.getElementById('video-bcr-fallback').style.display='flex'">
+      </video>
+      <div id="video-bcr-fallback" class="video-fallback" style="display:none">
+        <span>📽️</span>
+        <p>Vidéo non générée</p>
+        <code>python race_bcr.py</code>
+      </div>
+      <div class="video-caption">
+        Généré avec <strong>bar_chart_race</strong> · <code>python race_bcr.py</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matplotlib video -->
+  <div class="race-panel" id="race-panel-mpl">
+    <div class="video-panel">
+      <video id="video-mpl" controls loop class="race-video"
+             src="data/race_matplotlib.mp4"
+             onerror="document.getElementById('video-mpl-fallback').style.display='flex'">
+      </video>
+      <div id="video-mpl-fallback" class="video-fallback" style="display:none">
+        <span>📽️</span>
+        <p>Vidéo non générée</p>
+        <code>python race_matplotlib.py</code>
+      </div>
+      <div class="video-caption">
+        Généré avec <strong>Matplotlib FuncAnimation</strong> · interpolation cubic ease-in-out ·
+        <code>python race_matplotlib.py</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ FOOTER -->
+<footer class="site-footer">
+  <p>
+    💾 <strong>ECL Data Club</strong> · Analyse WhatsApp ·
+    <a href="https://github.com/romainfjgaspard/ecl_ds" target="_blank" rel="noopener">
+      github.com/romainfjgaspard/ecl_ds
+    </a>
+  </p>
+  <p id="footer-gen" class="footer-gen"></p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
